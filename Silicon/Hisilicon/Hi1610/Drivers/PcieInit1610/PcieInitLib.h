@@ -246,4 +246,6 @@ EFI_STATUS PcieWaitLinkUp(UINT32 Port);
 
 EFI_STATUS PcieSetDBICS2Enable(UINT32 HostBridgeNum, UINT32 Port, UINT32 Enable);
 
+VOID InitAtu (PCI_ROOT_BRIDGE_RESOURCE_APPETURE *Private);
+
 #endif
