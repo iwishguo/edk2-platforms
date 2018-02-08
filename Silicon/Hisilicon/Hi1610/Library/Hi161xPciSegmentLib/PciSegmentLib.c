@@ -21,8 +21,7 @@
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
 #include <Library/IoLib.h>
-
-#include <Platform/Pcie.h>
+#include <Library/PlatformPciLib.h>
 
 typedef enum {
   PciCfgWidthUint8      = 0,
@@ -42,24 +41,99 @@ typedef enum {
 #define ASSERT_INVALID_PCI_SEGMENT_ADDRESS(A,M) \
   ASSERT (((A) & (0xffff0000f0000000ULL | (M))) == 0)
 
-STATIC
-UINT64
-PciSegmentLibGetConfigBase (
-  IN  UINT64      Address
-  )
-{
-  switch ((UINT16)(Address >> 32)) {
-  case 0:
-    return SYNQUACER_PCI_SEG0_CONFIG_BASE;
-  case 1:
-    return SYNQUACER_PCI_SEG1_CONFIG_BASE;
-  default:
-    ASSERT (FALSE);
-  }
-
-  return 0;
+#define EXTRACT_PCIE_ADDRESS(Address, Segment, Bus, Device, Function, Register) \
+{ \
+  (Segment)  = (RShiftU64 (Address, 32) & 0xffff);   \
+  (Bus)      = (((Address) >> 20) & 0xff);   \
+  (Device)   = (((Address) >> 15) & 0x1f);   \
+  (Function) = (((Address) >> 12) & 0x07);   \
+  (Register) = ((Address)       & 0xfff);  \
 }
 
+STATIC
+PCI_ROOT_BRIDGE_RESOURCE_APPETURE *
+PciSegmentLibGetAppeture (
+  IN  UINT32     Segment 
+  )
+{
+  UINTN Hb;
+  UINTN Rb;
+
+  for (Hb = 0; Hb < PCIE_MAX_HOSTBRIDGE; Hb++) {
+    for (Rb = 0; Rb < PCIE_MAX_ROOTBRIDGE; Rb++) {
+      if (Segment == mResAppeture[Hb][Rb].Segment) {
+        return &mResAppeture[Hb][Rb];
+      }
+    }
+  }
+
+  // Shouldn't reach here
+  ASSERT (FALSE);
+  return NULL;
+}
+
+
+STATIC
+UINT32
+CpuMemoryServiceRead (
+  IN  PCI_CFG_WIDTH              Width,
+  IN  UINT64                     Address
+  )
+{
+
+  UINT32                     Uint32Buffer;
+
+  //
+  // Select loop based on the width of the transfer
+  //
+  if (Width == PciCfgWidthUint8) {
+    Uint32Buffer = MmioRead32((UINTN)(Address & (~0x3)));
+    return BitFieldRead32 (Uint32Buffer, (Address & 0x3) * 8, (Address & 0x3) * 8 + 7);
+  } else if (Width == PciCfgWidthUint16) {
+    if (((Address & 0x3) == 1) || ((Address & 0x3) == 3)) {
+      return 0xffff;
+    }
+    Uint32Buffer = MmioRead32((UINTN)(Address & (~0x3)));
+    return BitFieldRead32 (Uint32Buffer, (Address & 0x3) * 8, (Address & 0x3) * 8 + 15);
+  } else if (Width == PciCfgWidthUint32) {
+    return MmioRead32 ((UINTN)Address);
+  } else {
+    return 0xffffffff;
+  }
+}
+
+STATIC
+UINT32
+CpuMemoryServiceWrite (
+  IN  PCI_CFG_WIDTH              Width,
+  IN  UINT64                     Address,
+  IN  UINT32                     Data
+  )
+{
+
+  UINT32                     Uint32Buffer;
+
+  //
+  // Select loop based on the width of the transfer
+  //
+  if (Width == PciCfgWidthUint8) {
+    Uint32Buffer = MmioRead32((UINTN)(Address & (~0x3)));
+    BitFieldWrite32 (Uint32Buffer, (Address & 0x3) * 8, (Address & 0x3) * 8 + 7, Data);
+    MmioWrite32 ((UINTN)Address, Uint32Buffer);
+  } else if (Width == PciCfgWidthUint16) {
+    if (((Address & 0x3) == 1) || ((Address & 0x3) == 3)) {
+      return 0xffffffff;
+    }
+    Uint32Buffer = MmioRead32((UINTN)(Address & (~0x3)));
+    BitFieldWrite32 (Uint32Buffer, (Address & 0x3) * 8, (Address & 0x3) * 8 + 15, Data);
+    MmioWrite32 ((UINTN)Address, Uint32Buffer);
+  } else if (Width == PciCfgWidthUint32) {
+    MmioWrite32 ((UINTN)Address, Data);
+  } else {
+    return 0xffffffff;
+  }
+  return Data;
+}
 /**
   Internal worker function to read a PCI configuration register.
 
@@ -77,27 +151,32 @@ PciSegmentLibReadWorker (
   IN  PCI_CFG_WIDTH               Width
   )
 {
-  UINT64    Base;
+  PCI_ROOT_BRIDGE_RESOURCE_APPETURE *Appeture;
+  UINT32    Segment;
+  UINT8     Bus;
+  UINT8     Device;
+  UINT8     Function;
+  UINT32    Register;
 
-  Base = PciSegmentLibGetConfigBase (Address);
+  UINT64    MmioAddress;
 
-  // ignore devices > 0 on bus 0
-  if ((Address & 0xff00000) == 0 && (Address & 0xf8000) != 0) {
+  EXTRACT_PCIE_ADDRESS (Address, Segment, Bus, Device, Function, Register);
+  Appeture = PciSegmentLibGetAppeture (Segment);
+  if (Appeture == NULL) {
     return 0xffffffff;
   }
 
-  switch (Width) {
-  case PciCfgWidthUint8:
-    return MmioRead8 (Base + (UINT32)Address);
-  case PciCfgWidthUint16:
-    return MmioRead16 (Base + (UINT32)Address);
-  case PciCfgWidthUint32:
-    return MmioRead32 (Base + (UINT32)Address);
-  default:
-    ASSERT (FALSE);
+  if (Bus == Appeture->BusBase) {
+    // ignore device > 0 or function > 0 on base bus
+    if (Device != 0 || Function != 0) {
+      return 0xffffffff;
+    }
+    MmioAddress = Appeture->RbPciBar + Register;
+  } else {
+    MmioAddress = Appeture->Ecam + (UINT32)Address;
   }
 
-  return 0;
+  return CpuMemoryServiceRead (MmioAddress, Width);
 }
 
 /**
@@ -119,30 +198,32 @@ PciSegmentLibWriteWorker (
   IN  UINT32                      Data
   )
 {
-  UINT64    Base;
+  PCI_ROOT_BRIDGE_RESOURCE_APPETURE *Appeture;
+  UINT32    Segment;
+  UINT8     Bus;
+  UINT8     Device;
+  UINT8     Function;
+  UINT32    Register;
 
-  Base = PciSegmentLibGetConfigBase (Address);
+  UINT64    MmioAddress;
 
-  // ignore devices > 0 on bus 0
-  if ((Address & 0xff00000) == 0 && (Address & 0xf8000) != 0) {
-    return Data;
+  EXTRACT_PCIE_ADDRESS (Address, Segment, Bus, Device, Function, Register);
+  Appeture = PciSegmentLibGetAppeture (Segment);
+  if (Appeture == NULL) {
+    return 0xffffffff;
   }
 
-  switch (Width) {
-  case PciCfgWidthUint8:
-    MmioWrite8 (Base + (UINT32)Address, Data);
-    break;
-  case PciCfgWidthUint16:
-    MmioWrite16 (Base + (UINT32)Address, Data);
-    break;
-  case PciCfgWidthUint32:
-    MmioWrite32 (Base + (UINT32)Address, Data);
-    break;
-  default:
-    ASSERT (FALSE);
+  if (Bus == Appeture->BusBase) {
+    // ignore device > 0 or function > 0 on base bus
+    if (Device != 0 || Function != 0) {
+      return 0xffffffff;
+    }
+    MmioAddress = Appeture->RbPciBar + Register;
+  } else {
+    MmioAddress = Appeture->Ecam + (UINT32)Address;
   }
 
-  return Data;
+  return CpuMemoryServiceWrite (MmioAddress, Width, Data);
 }
 
 /**
