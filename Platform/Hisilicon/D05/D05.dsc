@@ -614,7 +614,6 @@
     <LibraryClasses>
       NULL|Platform/Hisilicon/D05/Library/PlatformPciLib/PlatformPciLib.inf
   }
-  Platform/Hisilicon/D03/Drivers/PciPlatform/PciPlatform.inf
   MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf {
     <LibraryClasses>
       NULL|Platform/Hisilicon/D05/Library/PlatformPciLib/PlatformPciLib.inf
