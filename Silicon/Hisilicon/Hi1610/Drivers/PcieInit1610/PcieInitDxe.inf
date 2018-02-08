@@ -25,6 +25,7 @@
 [Sources]
   PcieInit.c
   PcieInitLib.c
+  PcieInitAtu.c
 
 [Packages]
   MdePkg/MdePkg.dec
