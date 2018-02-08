@@ -387,6 +387,17 @@ Returns:
 
 --*/
 {
+  switch (Phase) {
+  case EfiPciHostBridgeEndEnumeration:
+    // Only do once
+    if (ChipsetPhase == ChipsetEntry) {
+      DEBUG ((DEBUG_INFO, "PCI end enumeration platform hook\n"));
+      EnlargeAtuConfig0 (HostBridge);
+    }
+    break;
+  default:
+    break;
+  }
 
   return EFI_SUCCESS;
 }
