@@ -17,6 +17,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/PcdLib.h>
 #include <Library/OemMiscLib.h>
+#include <Library/PciExpressLib.h>
 #include <Library/PlatformPciLib.h>
 
 
@@ -153,6 +154,8 @@ PcieInitEntry (
             {
                 DEBUG((EFI_D_ERROR, "HostBridge %d, Pcie Port %d Init Failed! \n", HostBridgeNum, Port));
             }
+
+            InitAtu (&mResAppeture[HostBridgeNum][Port]);
 
         }
     }
