@@ -160,9 +160,7 @@ PcieInitEntry (
         }
     }
 
-
-    return EFI_SUCCESS;
-
+    return PciPlatformDriverEntry (ImageHandle, SystemTable);
 }
 
 
