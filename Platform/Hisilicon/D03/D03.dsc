@@ -82,6 +82,8 @@
 
   LpcLib|Silicon/Hisilicon/Hi1610/Library/LpcLib/LpcLib.inf
   SerialPortLib|Silicon/Hisilicon/Hi1610/Library/Uart/LpcSerialPortLib/LpcSerialPortLib.inf
+  PciHostBridgeLib|Platform/Hisilicon/Library/PciHostBridgeLib/PciHostBridgeLib.inf
+  PciSegmentLib|Silicon/Hisilicon/Hi1610/Library/Hi161xPciSegmentLib/Hi161xPciSegmentLib.inf
 
 ## GIC on D02/D03 is not fully ARM GIC compatible: IRQ cannot be cancelled when
 ## input signal is de-asserted, except for virtual timer interrupt IRQ #27.
@@ -336,6 +338,7 @@
   ArmPkg/Drivers/CpuDxe/CpuDxe.inf
   MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
 
+  Silicon/Hisilicon/Drivers/ArmPciCpuIo2Dxe/ArmPciCpuIo2Dxe.inf
   Platform/Hisilicon/D03/Drivers/OemNicConfig2PHi1610/OemNicConfig2P.inf
 
   Platform/Hisilicon/D03/Drivers/SFC/SfcDxeDriver.inf
@@ -457,9 +460,8 @@
     <LibraryClasses>
       NULL|Platform/Hisilicon/D03/Library/PlatformPciLib/PlatformPciLib.inf
   }
-  Silicon/Hisilicon/Drivers/PciHostBridgeDxe/PciHostBridgeDxe.inf {
+  MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf {
     <LibraryClasses>
-      DmaLib|EmbeddedPkg/Library/NonCoherentDmaLib/NonCoherentDmaLib.inf
       NULL|Platform/Hisilicon/D03/Library/PlatformPciLib/PlatformPciLib.inf
   }
 
