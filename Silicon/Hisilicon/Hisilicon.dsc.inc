@@ -253,7 +253,7 @@
 
 [PcdsFixedAtBuild.common]
   gEmbeddedTokenSpaceGuid.PcdPrePiCpuMemorySize|44
-  gEmbeddedTokenSpaceGuid.PcdPrePiCpuIoSize|0
+  gEmbeddedTokenSpaceGuid.PcdPrePiCpuIoSize|44
   gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength|1000000
   gEfiMdePkgTokenSpaceGuid.PcdMaximumAsciiStringLength|1000000
   gEfiMdePkgTokenSpaceGuid.PcdMaximumLinkedListLength|1000000
