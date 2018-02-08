@@ -2,7 +2,8 @@
   Produces the CPU I/O 2 Protocol.
 
 Copyright (c) 2009 - 2012, Intel Corporation. All rights reserved.<BR>
-Copyright (c) 2016, Linaro Ltd. All rights reserved.<BR>
+Copyright (c) 2016 - 2018, Linaro Ltd. All rights reserved.<BR>
+Copyright (c) 2018, Hisilicon Ltd. All rights reserved.<BR>
 
 This program and the accompanying materials
 are licensed and made available under the terms and conditions of the BSD License
@@ -24,12 +25,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <Library/PcdLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
-#define MAX_IO_PORT_ADDRESS   0xFFFF
-
-//
-// Handle for the CPU I/O 2 Protocol
-//
-STATIC EFI_HANDLE  mHandle = NULL;
+// The translated IO PORT address is already a MMIO address, so we make it the
+// same as memory address for range check.
+#define MAX_IO_PORT_ADDRESS   MAX_ADDRESS
 
 //
 // Lookup table for increment values based on transfer widths
@@ -405,8 +403,6 @@ CpuIoServiceRead (
     return Status;
   }
 
-  Address += PcdGet64 (PcdPciIoTranslation);
-
   //
   // Select loop based on the width of the transfer
   //
@@ -414,6 +410,8 @@ CpuIoServiceRead (
   OutStride = mOutStride[Width];
   OperationWidth = (EFI_CPU_IO_PROTOCOL_WIDTH) (Width & 0x03);
 
+  // Assuming address has already been translated into MMIO address by PCI host
+  // bridge driver, so we call MmioRead/Write directly.
   for (Uint8Buffer = Buffer; Count > 0; Address += InStride, Uint8Buffer += OutStride, Count--) {
     if (OperationWidth == EfiCpuIoWidthUint8) {
       *Uint8Buffer = MmioRead8 ((UINTN)Address);
@@ -491,8 +489,6 @@ CpuIoServiceWrite (
     return Status;
   }
 
-  Address += PcdGet64 (PcdPciIoTranslation);
-
   //
   // Select loop based on the width of the transfer
   //
@@ -500,6 +496,8 @@ CpuIoServiceWrite (
   OutStride = mOutStride[Width];
   OperationWidth = (EFI_CPU_IO_PROTOCOL_WIDTH) (Width & 0x03);
 
+  // Assuming address has already been translated into MMIO address by PCI host
+  // bridge driver, so we call MmioRead/Write directly.
   for (Uint8Buffer = (UINT8 *)Buffer; Count > 0; Address += InStride, Uint8Buffer += OutStride, Count--) {
     if (OperationWidth == EfiCpuIoWidthUint8) {
       MmioWrite8 ((UINTN)Address, *Uint8Buffer);
@@ -549,7 +547,7 @@ ArmPciCpuIo2Initialize (
 
   ASSERT_PROTOCOL_ALREADY_INSTALLED (NULL, &gEfiCpuIo2ProtocolGuid);
   Status = gBS->InstallMultipleProtocolInterfaces (
-                  &mHandle,
+                  &ImageHandle,
                   &gEfiCpuIo2ProtocolGuid, &mCpuIo2,
                   NULL
                   );
