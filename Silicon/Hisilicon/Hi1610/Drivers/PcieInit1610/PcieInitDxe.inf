@@ -48,10 +48,11 @@
   OemMiscLib
 
 [Protocols]
-  #gEfiPcieRootBridgeProtocolGuid
   gEfiFirmwareVolume2ProtocolGuid
+  gEfiPciHostBridgeResourceAllocationProtocolGuid
   gEfiPciIoProtocolGuid
   gEfiPciPlatformProtocolGuid
+  gEfiPciRootBridgeIoProtocolGuid
 
 [Pcd]
   gHisiTokenSpaceGuid.PcdPcieRootBridgeMask
