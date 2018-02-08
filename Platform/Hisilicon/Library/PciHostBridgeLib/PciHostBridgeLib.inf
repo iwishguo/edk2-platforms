@@ -1,7 +1,8 @@
 ## @file
-#  PCI Host Bridge Library instance for ARM Juno
+#  PCI Host Bridge Library instance for Hisilicon D0x
 #
-#  Copyright (c) 2017, Linaro Ltd. All rights reserved.<BR>
+#  Copyright (c) 2018, Hisilicon Limited. All rights reserved.<BR>
+#  Copyright (c) 2017 - 2018, Linaro Ltd. All rights reserved.<BR>
 #
 #  This program and the accompanying materials are licensed and made available
 #  under the terms and conditions of the BSD License which accompanies this
@@ -15,13 +16,12 @@
 ##
 
 [Defines]
-  INF_VERSION                    = 0x00010005
-  BASE_NAME                      = JunoPciHostBridgeLib
-  FILE_GUID                      = d92c722c-87f9-4988-843e-dffd6bc8c5e3
+  INF_VERSION                    = 0x0001000A
+  BASE_NAME                      = PciHostBridgeLib
+  FILE_GUID                      = e5c91e8a-0b2b-11e8-9533-286ed489ee9b
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = PciHostBridgeLib|DXE_DRIVER
-  CONSTRUCTOR                    = HWPciRbInit
 
 #
 # The following information is for reference only and not required by the build
@@ -31,47 +31,32 @@
 #
 
 [Sources]
-  JunoPciHostBridgeLib.c
-  XPressRich3.c
+  PciHostBridgeLib.c
 
 [Packages]
-  ArmPkg/ArmPkg.dec
   MdeModulePkg/MdeModulePkg.dec
   MdePkg/MdePkg.dec
-  Platform/ARM/JunoPkg/ArmJuno.dec
-
+  Silicon/Hisilicon/HisiPkg.dec
+ 
 [LibraryClasses]
   BaseLib
+  BaseMemoryLib
   DebugLib
   DevicePathLib
-  IoLib
+#IoLib
   MemoryAllocationLib
-  UefiBootServicesTableLib
+  OemMiscLib
+#  UefiBootServicesTableLib
 
 [Pcd]
-  gArmTokenSpaceGuid.PcdSystemMemoryBase
-  gArmTokenSpaceGuid.PcdSystemMemorySize
+  gHisiTokenSpaceGuid.PcdPcieRootBridgeMask
+  gHisiTokenSpaceGuid.PcdPcieRootBridgeMask2P
 
-[FixedPcd]
-  gArmTokenSpaceGuid.PcdPciBusMin
-  gArmTokenSpaceGuid.PcdPciBusMax
-  gArmTokenSpaceGuid.PcdPciIoBase
-  gArmTokenSpaceGuid.PcdPciIoSize
-  gArmTokenSpaceGuid.PcdPciIoTranslation
-  gArmTokenSpaceGuid.PcdPciMmio32Base
-  gArmTokenSpaceGuid.PcdPciMmio32Size
-  gArmTokenSpaceGuid.PcdPciMmio32Translation
-  gArmTokenSpaceGuid.PcdPciMmio64Base
-  gArmTokenSpaceGuid.PcdPciMmio64Size
-  gArmTokenSpaceGuid.PcdPciMmio64Translation
 
-  gArmJunoTokenSpaceGuid.PcdPcieControlBaseAddress
-  gArmJunoTokenSpaceGuid.PcdPcieRootPortBaseAddress
-  gArmJunoTokenSpaceGuid.PcdPciConfigurationSpaceBaseAddress
-  gArmJunoTokenSpaceGuid.PcdPciConfigurationSpaceSize
+#[FixedPcd]
 
-[Protocols]
-  gEfiCpuIo2ProtocolGuid          ## CONSUMES
+#[Protocols]
+#gEfiCpuIo2ProtocolGuid          ## CONSUMES
 
-[Depex]
-  gEfiCpuIo2ProtocolGuid
+#[Depex]
+#gEfiCpuIo2ProtocolGuid

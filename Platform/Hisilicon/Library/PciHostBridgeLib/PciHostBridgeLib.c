@@ -1,7 +1,8 @@
 /** @file
-  PCI Host Bridge Library instance for ARM Juno
+  PCI Host Bridge Library instance for Hisilicon D0x
 
-  Copyright (c) 2017, Linaro Ltd. All rights reserved.<BR>
+  Copyright (c) 2018, Hisilicon Limited. All rights reserved.<BR>
+  Copyright (c) 2017 - 2018, Linaro Ltd. All rights reserved.<BR>
 
   This program and the accompanying materials are licensed and made available
   under the terms and conditions of the BSD License which accompanies this
@@ -13,17 +14,19 @@
 
 **/
 #include <PiDxe.h>
+#include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/DevicePathLib.h>
 #include <Library/IoLib.h>
 #include <Library/MemoryAllocationLib.h>
+#include <Library/OemMiscLib.h>
 #include <Library/PcdLib.h>
 #include <Library/PciHostBridgeLib.h>
+#include <Library/PlatformPciLib.h>
 
 #include <Protocol/PciHostBridgeResourceAllocation.h>
 #include <Protocol/PciRootBridgeIo.h>
 
-#include "ArmPlatform.h"
 
 #pragma pack(1)
 typedef struct {
@@ -54,7 +57,7 @@ STATIC EFI_PCI_ROOT_BRIDGE_DEVICE_PATH mEfiPciRootBridgeDevicePath = {
   }
 };
 
-STATIC PCI_ROOT_BRIDGE mRootBridge = {
+STATIC PCI_ROOT_BRIDGE mRootBridgeTemplate = {
   0,                                              // Segment
   0,                                              // Supports
   0,                                              // Attributes
@@ -65,31 +68,72 @@ STATIC PCI_ROOT_BRIDGE mRootBridge = {
   EFI_PCI_HOST_BRIDGE_MEM64_DECODE,
   {
     // Bus
-    FixedPcdGet32 (PcdPciBusMin),
-    FixedPcdGet32 (PcdPciBusMax)
+    0,
+    0
   }, {
     // Io
-    FixedPcdGet64 (PcdPciIoBase),
-    FixedPcdGet64 (PcdPciIoBase) + FixedPcdGet64 (PcdPciIoSize) - 1
+    0,
+    0,
+    0
   }, {
     // Mem
-    FixedPcdGet32 (PcdPciMmio32Base),
-    FixedPcdGet32 (PcdPciMmio32Base) + FixedPcdGet32 (PcdPciMmio32Size) - 1
+    MAX_UINT64,
+    0,
+    0
   }, {
     // MemAbove4G
-    FixedPcdGet64 (PcdPciMmio64Base),
-    FixedPcdGet64 (PcdPciMmio64Base) + FixedPcdGet64 (PcdPciMmio64Size) - 1
+    MAX_UINT64,
+    0,
+    0
   }, {
     // PMem
     MAX_UINT64,
+    0,
     0
   }, {
     // PMemAbove4G
     MAX_UINT64,
+    0,
     0
   },
   (EFI_DEVICE_PATH_PROTOCOL *)&mEfiPciRootBridgeDevicePath
 };
+
+STATIC
+EFI_STATUS
+ConstructRootBridge (
+    PCI_ROOT_BRIDGE                     *Bridge,
+    PCI_ROOT_BRIDGE_RESOURCE_APPETURE   *Appeture
+    )
+{
+  EFI_PCI_ROOT_BRIDGE_DEVICE_PATH *DevicePath;
+  CopyMem (Bridge, &mRootBridgeTemplate, sizeof *Bridge);
+  Bridge->Segment = Appeture->Segment;
+  Bridge->Bus.Base = Appeture->BusBase;
+  Bridge->Bus.Limit = Appeture->BusLimit;
+  Bridge->Io.Base = Appeture->IoBase;
+  Bridge->Io.Limit = Appeture->IoLimit;
+  Bridge->Io.Translation = Appeture->CpuIoRegionBase - Appeture->IoBase;
+  if (Appeture->PciRegionBase > MAX_UINT32) {
+    Bridge->MemAbove4G.Base = Appeture->PciRegionBase;
+    Bridge->MemAbove4G.Limit = Appeture->PciRegionLimit;
+    Bridge->MemAbove4G.Translation = Appeture->CpuMemRegionBase - Appeture->PciRegionBase;
+  } else {
+    Bridge->Mem.Base = Appeture->PciRegionBase;
+    Bridge->Mem.Limit = Appeture->PciRegionLimit;
+    Bridge->Mem.Translation = Appeture->CpuMemRegionBase - Appeture->PciRegionBase;
+  }
+
+  DevicePath = AllocateCopyPool(sizeof mEfiPciRootBridgeDevicePath, &mEfiPciRootBridgeDevicePath);
+  if (DevicePath == NULL) {
+    DEBUG ((DEBUG_ERROR, "[%a]:[%dL] AllocatePool failed!\n", __FUNCTION__, __LINE__));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  DevicePath->AcpiDevicePath.UID = Bridge->Segment;
+  Bridge->DevicePath = (EFI_DEVICE_PATH_PROTOCOL *)DevicePath;
+  return EFI_SUCCESS;
+}
 
 /**
   Return all the root bridge instances in an array.
@@ -106,20 +150,67 @@ PciHostBridgeGetRootBridges (
   UINTN *Count
   )
 {
-  UINT32                  JunoRevision;
+  EFI_STATUS                  Status;
+  UINTN                       Loop1;
+  UINTN                       Loop2;
+  UINT32                      PcieRootBridgeMask;
+  UINTN                       RootBridgeCount = 0;
+  PCI_ROOT_BRIDGE             *Bridges;
 
-  //
-  // Juno R0 has no working PCIe
-  //
-  GetJunoRevision (JunoRevision);
-  if (JunoRevision < JUNO_REVISION_R1) {
-    *Count = 0;
+  // Set default value to 0 in case we got any error.
+  *Count = 0;
+
+
+  if (!OemIsMpBoot())
+  {
+    PcieRootBridgeMask = PcdGet32(PcdPcieRootBridgeMask);
+  }
+  else
+  {
+    PcieRootBridgeMask = PcdGet32(PcdPcieRootBridgeMask2P);
+  }
+
+  for (Loop1 = 0; Loop1 < PCIE_MAX_HOSTBRIDGE; Loop1++) {
+    if (((PcieRootBridgeMask >> (PCIE_MAX_ROOTBRIDGE * Loop1)) & 0xFF ) == 0) {
+      continue;
+    }
+
+    for (Loop2 = 0; Loop2 < PCIE_MAX_ROOTBRIDGE; Loop2++) {
+      if (!(((PcieRootBridgeMask >> (PCIE_MAX_ROOTBRIDGE * Loop1)) >> Loop2 ) & 0x01)) {
+        continue;
+      }
+      RootBridgeCount++;
+    }
+  }
+
+  Bridges = AllocatePool (RootBridgeCount * sizeof *Bridges);
+  if (Bridges == NULL) {
+    DEBUG ((DEBUG_ERROR, "[%a:%d] - AllocatePool failed!\n", __FUNCTION__, __LINE__));
     return NULL;
   }
 
-  *Count = 1;
+  for (Loop1 = 0; Loop1 < PCIE_MAX_HOSTBRIDGE; Loop1++) {
+    if (((PcieRootBridgeMask >> (PCIE_MAX_ROOTBRIDGE * Loop1)) & 0xFF ) == 0) {
+      continue;
+    }
 
-  return &mRootBridge;
+    for (Loop2 = 0; Loop2 < PCIE_MAX_ROOTBRIDGE; Loop2++) {
+      if (!(((PcieRootBridgeMask >> (PCIE_MAX_ROOTBRIDGE * Loop1)) >> Loop2 ) & 0x01)) {
+        continue;
+      }
+      Status = ConstructRootBridge (&Bridges[*Count], &mResAppeture[Loop1][Loop2]);
+      if (EFI_ERROR (Status)) {
+        continue;
+      }
+      (*Count)++;
+    }
+  }
+
+  if (*Count == 0) {
+    FreePool (Bridges);
+    return NULL;
+  }
+  return Bridges;
 }
 
 /**
@@ -135,6 +226,15 @@ PciHostBridgeFreeRootBridges (
   UINTN           Count
   )
 {
+  UINTN Index;
+
+  for (Index = 0; Index < Count; Index++) {
+    FreePool (Bridges[Index].DevicePath);
+  }
+
+  if (Bridges != NULL) {
+    FreePool (Bridges);
+  }
 }
 
 
