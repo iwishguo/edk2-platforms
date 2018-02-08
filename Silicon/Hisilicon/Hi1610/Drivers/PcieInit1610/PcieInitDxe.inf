@@ -26,6 +26,7 @@
   PcieInit.c
   PcieInitLib.c
   PcieInitAtu.c
+  PciPlatform/PciPlatform.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -40,6 +41,7 @@
   BaseLib
   DebugLib
   ArmLib
+  MemoryAllocationLib
   TimerLib
   PcdLib
   IoLib
@@ -47,6 +49,9 @@
 
 [Protocols]
   #gEfiPcieRootBridgeProtocolGuid
+  gEfiFirmwareVolume2ProtocolGuid
+  gEfiPciIoProtocolGuid
+  gEfiPciPlatformProtocolGuid
 
 [Pcd]
   gHisiTokenSpaceGuid.PcdPcieRootBridgeMask
