@@ -248,4 +248,10 @@ EFI_STATUS PcieSetDBICS2Enable(UINT32 HostBridgeNum, UINT32 Port, UINT32 Enable)
 
 VOID InitAtu (PCI_ROOT_BRIDGE_RESOURCE_APPETURE *Private);
 
+EFI_STATUS
+PciPlatformDriverEntry (
+  IN EFI_HANDLE                         ImageHandle,
+  IN EFI_SYSTEM_TABLE                   *SystemTable
+  );
+
 #endif
