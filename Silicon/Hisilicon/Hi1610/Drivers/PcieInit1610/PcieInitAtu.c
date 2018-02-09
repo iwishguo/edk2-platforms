@@ -13,11 +13,14 @@
 *
 **/
 
+#include <IndustryStandard/Acpi.h>
 #include <Library/OemMiscLib.h>
 #include <Library/PcdLib.h>
 #include <Library/PciExpressLib.h>
 #include <Library/PlatformPciLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Protocol/PciRootBridgeIo.h>
+#include <Protocol/PciHostBridgeResourceAllocation.h>
 #include "PcieInit.h"
 
 #define	INVALID_CAPABILITY_00       0x00
@@ -37,6 +40,54 @@ GetPcieCfgAddress (
   return Ecam + PCI_EXPRESS_LIB_ADDRESS (Bus, Device, Function, Reg);
 }
 
+STATIC
+PCI_ROOT_BRIDGE_RESOURCE_APPETURE *
+GetAppetureByRootBridgeIo (
+    IN  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL  *RootBridge
+    )
+{
+  EFI_STATUS Status;
+  EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR *Configuration = NULL;
+  UINTN Hb;
+  UINTN Rb;
+
+  Status = RootBridge->Configuration (
+      RootBridge,
+      (VOID **)&Configuration
+      );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "[%a:%d] RootBridgeIo->Configuration failed %r\n",
+          __FUNCTION__, __LINE__, Status));
+    return NULL;
+  };
+
+  while (Configuration->Desc == ACPI_ADDRESS_SPACE_DESCRIPTOR) {
+    if (Configuration->ResType == ACPI_ADDRESS_SPACE_TYPE_BUS) {
+      break;
+    }
+    Configuration++;
+  }
+
+  if (Configuration->Desc != ACPI_ADDRESS_SPACE_DESCRIPTOR ||
+      Configuration->ResType != ACPI_ADDRESS_SPACE_TYPE_BUS) {
+    DEBUG ((DEBUG_ERROR, "[%a:%d] Can't find bus descriptor\n", __FUNCTION__, __LINE__));
+    return NULL;
+  }
+
+  for (Hb = 0; Hb < PCIE_MAX_HOSTBRIDGE; Hb++) {
+    for (Rb = 0; Rb < PCIE_MAX_ROOTBRIDGE; Rb++) {
+      if (RootBridge->SegmentNumber == mResAppeture[Hb][Rb].Segment &&
+          Configuration->AddrRangeMin >= mResAppeture[Hb][Rb].BusBase &&
+          Configuration->AddrRangeMax <= mResAppeture[Hb][Rb].BusLimit) {
+        return &mResAppeture[Hb][Rb];
+      }
+    }
+  }
+
+  DEBUG ((DEBUG_ERROR, "[%a:%d] Can't find PCI appeture\n", __FUNCTION__, __LINE__));
+  return NULL;
+}
+    
 STATIC
 VOID
 SetAtuConfig0RW (
@@ -196,7 +247,7 @@ PcieCheckAriFwdEn (
 
 VOID
 EnlargeAtuConfig0 (
-  IN EFI_HANDLE *HostBridge
+  IN EFI_HANDLE HostBridge
   )
 {
   EFI_PCI_HOST_BRIDGE_RESOURCE_ALLOCATION_PROTOCOL    *ResAlloc = NULL;
@@ -212,7 +263,7 @@ EnlargeAtuConfig0 (
   Status = gBS->HandleProtocol (
       HostBridge,
       &gEfiPciHostBridgeResourceAllocationProtocolGuid,
-      &ResAlloc
+      (VOID **)&ResAlloc
       );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "[%a:%d] - HandleProtocol failed %r\n", __FUNCTION__,
@@ -231,28 +282,29 @@ EnlargeAtuConfig0 (
     Status = gBS->HandleProtocol (
         RootBridgeHandle,
         &gEfiPciRootBridgeIoProtocolGuid,
-        &RootBridgeIo
+        (VOID **)&RootBridgeIo
         );
     if (EFI_ERROR (Status)) {
       DEBUG ((EFI_D_ERROR, "[%a:%d] - HandleProtocol failed %r\n", __FUNCTION__, __LINE__, Status)); 
+      // This should never happen so that it is a fatal error and we don't try
+      // to continue
       break;
     }
 
     Appeture = GetAppetureByRootBridgeIo (RootBridgeIo);
     if (Appeture == NULL) {
-      DEBUG ((DEBUG_ERROR, "[%a:%d] - \n", __FUNCTION__, __LINE__));
+      DEBUG ((DEBUG_ERROR, "[%a:%d] Get appeture failed\n", __FUNCTION__,
+            __LINE__));
+      continue;
+    }
 
-    RbPciBase = RootBridgeInstance->RbPciBar;
-
-    // Those ARI FWD Enable Root Bridge, need enlarge iatu window.
+    RbPciBase = Appeture->RbPciBar;
+    // Those ARI FWD Enable Root Bridge, need enlarge iATU window.
     if (PcieCheckAriFwdEn (RbPciBase)) {
-      MemLimit = GetPcieCfgAddress (RootBridgeInstance->Ecam,
-                                    RootBridgeInstance->BusBase + 2, 0, 0, 0)
-	               - 1;
+      MemLimit = GetPcieCfgAddress (Appeture->Ecam, Appeture->BusBase + 2, 0, 0, 0) - 1;
       MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_VIEW_POINT, 1);
       MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LIMIT, (UINT32) MemLimit);
     }
-    List = List->ForwardLink;
   }
 }
 

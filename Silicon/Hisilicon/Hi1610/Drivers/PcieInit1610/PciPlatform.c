@@ -25,6 +25,7 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/UefiDriverEntryPoint.h>
 #include <Library/MemoryAllocationLib.h>
+#include "PcieInitLib.h"
 
 //
 // Global variables for Option ROMs

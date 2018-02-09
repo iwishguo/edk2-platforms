@@ -250,7 +250,7 @@ VOID InitAtu (PCI_ROOT_BRIDGE_RESOURCE_APPETURE *Private);
 
 VOID
 EnlargeAtuConfig0 (
-  IN EFI_HANDLE *HostBridge
+  IN EFI_HANDLE HostBridge
   );
 
 EFI_STATUS
