@@ -545,7 +545,7 @@ InitializePciHostBridge (
            HostBridge->HostBridgeHandle,
            RootBridgeAttribute[Loop1][Loop2],
            &mResAppeture[Loop1][Loop2],
-           Loop1
+           mResAppeture[Loop1][Loop2].Segment
       );
 
       Status = gBS->InstallMultipleProtocolInterfaces(
