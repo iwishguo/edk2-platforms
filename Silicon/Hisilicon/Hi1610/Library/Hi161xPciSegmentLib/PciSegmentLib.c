@@ -216,7 +216,11 @@ PciSegmentLibWriteWorker (
   if (Bus == Appeture->BusBase) {
     // ignore device > 0 or function > 0 on base bus
     if (Device != 0 || Function != 0) {
-      return 0xffffffff;
+      return Data;
+    }
+    // Ignore writing to root port BAR registers, in case we get wrong BAR length
+    if ((Register & ~0x3) == 0x14 || (Register & ~0x3) == 0x10) {
+      return Data;
     }
     MmioAddress = Appeture->RbPciBar + Register;
   } else {
