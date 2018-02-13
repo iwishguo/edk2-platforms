@@ -76,8 +76,8 @@ PciSegmentLibGetAppeture (
 STATIC
 UINT32
 CpuMemoryServiceRead (
-  IN  PCI_CFG_WIDTH              Width,
-  IN  UINT64                     Address
+  IN  UINT64                     Address,
+  IN  PCI_CFG_WIDTH              Width
   )
 {
 
@@ -105,8 +105,8 @@ CpuMemoryServiceRead (
 STATIC
 UINT32
 CpuMemoryServiceWrite (
-  IN  PCI_CFG_WIDTH              Width,
   IN  UINT64                     Address,
+  IN  PCI_CFG_WIDTH              Width,
   IN  UINT32                     Data
   )
 {
