@@ -76,8 +76,8 @@ PciSegmentLibGetAppeture (
 STATIC
 UINT32
 CpuMemoryServiceRead (
-  IN  PCI_CFG_WIDTH              Width,
-  IN  UINT64                     Address
+  IN  UINT64                     Address,
+  IN  PCI_CFG_WIDTH              Width
   )
 {
 
@@ -105,8 +105,8 @@ CpuMemoryServiceRead (
 STATIC
 UINT32
 CpuMemoryServiceWrite (
-  IN  PCI_CFG_WIDTH              Width,
   IN  UINT64                     Address,
+  IN  PCI_CFG_WIDTH              Width,
   IN  UINT32                     Data
   )
 {
@@ -119,14 +119,14 @@ CpuMemoryServiceWrite (
   if (Width == PciCfgWidthUint8) {
     Uint32Buffer = MmioRead32((UINTN)(Address & (~0x3)));
     BitFieldWrite32 (Uint32Buffer, (Address & 0x3) * 8, (Address & 0x3) * 8 + 7, Data);
-    MmioWrite32 ((UINTN)Address, Uint32Buffer);
+    MmioWrite32 ((UINTN)(Address & (~0x3)), Uint32Buffer);
   } else if (Width == PciCfgWidthUint16) {
     if (((Address & 0x3) == 1) || ((Address & 0x3) == 3)) {
       return 0xffffffff;
     }
     Uint32Buffer = MmioRead32((UINTN)(Address & (~0x3)));
     BitFieldWrite32 (Uint32Buffer, (Address & 0x3) * 8, (Address & 0x3) * 8 + 15, Data);
-    MmioWrite32 ((UINTN)Address, Uint32Buffer);
+    MmioWrite32 ((UINTN)(Address & (~0x3)), Uint32Buffer);
   } else if (Width == PciCfgWidthUint32) {
     MmioWrite32 ((UINTN)Address, Data);
   } else {
