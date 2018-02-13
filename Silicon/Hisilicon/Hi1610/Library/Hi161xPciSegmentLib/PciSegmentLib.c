@@ -72,6 +72,17 @@ PciSegmentLibGetAppeture (
   return NULL;
 }
 
+BOOLEAN PcieIsLinkUp (UINTN RbPciBar)
+{
+  UINT32 Value;
+
+  Value = MmioRead32(RbPciBar + 0x131C);
+  if ((Value & 0x3F) == 0x11) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
 
 STATIC
 UINT32
@@ -173,6 +184,11 @@ PciSegmentLibReadWorker (
     }
     MmioAddress = Appeture->RbPciBar + Register;
   } else {
+    // Cannot read from device under root port when link is not up
+    if (Bus == Appeture->BusBase + 1 && !PcieIsLinkUp (Appeture->RbPciBar)) {
+      return 0xffffffff;
+    }
+
     MmioAddress = Appeture->Ecam + (UINT32)Address;
   }
 
@@ -224,6 +240,10 @@ PciSegmentLibWriteWorker (
     }
     MmioAddress = Appeture->RbPciBar + Register;
   } else {
+    // Cannot read from device under root port when link is not up
+    if (Bus == Appeture->BusBase + 1 && !PcieIsLinkUp (Appeture->RbPciBar)) {
+      return 0xffffffff;
+    }
     MmioAddress = Appeture->Ecam + (UINT32)Address;
   }
 
