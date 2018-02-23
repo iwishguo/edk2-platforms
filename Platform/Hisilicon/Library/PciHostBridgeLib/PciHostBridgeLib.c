@@ -113,15 +113,16 @@ ConstructRootBridge (
   Bridge->Bus.Limit = Appeture->BusLimit;
   Bridge->Io.Base = Appeture->IoBase;
   Bridge->Io.Limit = Appeture->IoLimit;
-  Bridge->Io.Translation = Appeture->CpuIoRegionBase - Appeture->IoBase;
+  // According to UEFI 2.7, device address = host address + translation
+  Bridge->Io.Translation = Appeture->IoBase - Appeture->CpuIoRegionBase;
   if (Appeture->PciRegionBase > MAX_UINT32) {
     Bridge->MemAbove4G.Base = Appeture->PciRegionBase;
     Bridge->MemAbove4G.Limit = Appeture->PciRegionLimit;
-    Bridge->MemAbove4G.Translation = Appeture->CpuMemRegionBase - Appeture->PciRegionBase;
+    Bridge->MemAbove4G.Translation = Appeture->PciRegionBase - Appeture->CpuMemRegionBase;
   } else {
     Bridge->Mem.Base = Appeture->PciRegionBase;
     Bridge->Mem.Limit = Appeture->PciRegionLimit;
-    Bridge->Mem.Translation = Appeture->CpuMemRegionBase - Appeture->PciRegionBase;
+    Bridge->Mem.Translation = Appeture->PciRegionBase - Appeture->CpuMemRegionBase;
   }
 
   DevicePath = AllocateCopyPool(sizeof mEfiPciRootBridgeDevicePath, &mEfiPciRootBridgeDevicePath);
