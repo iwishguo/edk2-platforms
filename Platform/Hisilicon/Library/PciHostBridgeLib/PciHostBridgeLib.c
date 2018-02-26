@@ -112,9 +112,11 @@ ConstructRootBridge (
   Bridge->Bus.Base = Appeture->BusBase;
   Bridge->Bus.Limit = Appeture->BusLimit;
   Bridge->Io.Base = Appeture->IoBase;
-  Bridge->Io.Limit = Appeture->IoLimit;
   // According to UEFI 2.7, device address = host address + translation
   Bridge->Io.Translation = Appeture->IoBase - Appeture->CpuIoRegionBase;
+  // IoLimit is actually an address in CPU view
+  // TODO: improve the definition of PCI_ROOT_BRIDGE_RESOURCE_APPETURE
+  Bridge->Io.Limit = Appeture->IoLimit + Bridge->Io.Translation;
   if (Appeture->PciRegionBase > MAX_UINT32) {
     Bridge->MemAbove4G.Base = Appeture->PciRegionBase;
     Bridge->MemAbove4G.Limit = Appeture->PciRegionLimit;
