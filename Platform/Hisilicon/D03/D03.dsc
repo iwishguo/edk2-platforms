@@ -29,6 +29,8 @@
   SKUID_IDENTIFIER               = DEFAULT
   FLASH_DEFINITION               = Platform/Hisilicon/$(PLATFORM_NAME)/$(PLATFORM_NAME).fdf
 
+  DEFINE INCLUDE_TFTP_COMMAND    = TRUE
+
 !include Silicon/Hisilicon/Hisilicon.dsc.inc
 
 [LibraryClasses.common]
