@@ -96,11 +96,12 @@ SetAtuConfig0RW (
 {
   UINTN RbPciBase = Private->RbPciBar;
   UINT64 MemLimit = GetPcieCfgAddress (Private->Ecam, Private->BusBase + 1, 1, 0, 0) - 1;
+  UINT64 MemBase = GetPcieCfgAddress (Private->Ecam, Private->BusBase, 0, 0, 0);
 
 
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_VIEW_POINT, Index);
-  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LOW, (UINT32)(Private->Ecam));
-  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_HIGH, (UINT32)((UINT64)(Private->Ecam) >> 32));
+  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LOW, (UINT32)MemBase);
+  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_HIGH, (UINT32)(MemBase >> 32));
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LIMIT, (UINT32) MemLimit);
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_TARGET_LOW, 0);
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_TARGET_HIGH, 0);
@@ -124,12 +125,13 @@ SetAtuConfig1RW (
 {
   UINTN RbPciBase = Private->RbPciBar;
   UINT64 MemLimit = GetPcieCfgAddress (Private->Ecam, Private->BusLimit + 1, 0, 0, 0) - 1;
+  UINT64 MemBase = GetPcieCfgAddress (Private->Ecam, Private->BusBase + 2, 0, 0, 0);
 
 
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_VIEW_POINT, Index);
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_CTRL1, IATU_CTRL1_TYPE_CONFIG1);
-  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LOW, (UINT32)(Private->Ecam));
-  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_HIGH, (UINT32)((UINT64)(Private->Ecam) >> 32));
+  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LOW, (UINT32)MemBase);
+  MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_HIGH, (UINT32)(MemBase >> 32));
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_BASE_LIMIT, (UINT32) MemLimit);
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_TARGET_LOW, 0);
   MmioWrite32 (RbPciBase + IATU_OFFSET + IATU_REGION_TARGET_HIGH, 0);
